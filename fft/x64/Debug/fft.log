@@ -1,0 +1,35 @@
+﻿  Compiling CUDA source file Ambiguity.cu...
+  Compiling CUDA source file kernel.cu...
+  
+  c:\Users\danie\source\repos\fft2\fft>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\bin\nvcc.exe" -gencode=arch=compute_52,code=\"sm_52,compute_52\" --use-local-env -ccbin "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.31.31103\bin\HostX64\x64" -x cu   -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include"  -G   --keep-dir x64\Debug  -maxrregcount=0  --machine 64 --compile -cudart static  -g  -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_WINDLL -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc143.pdb /FS /Zi /RTC1 /MDd " -o c:\Users\danie\source\repos\fft2\fft\x64\Debug\Ambiguity.cu.obj "c:\Users\danie\source\repos\fft2\fft\Ambiguity.cu" 
+  
+  c:\Users\danie\source\repos\fft2\fft>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\bin\nvcc.exe" -gencode=arch=compute_52,code=\"sm_52,compute_52\" --use-local-env -ccbin "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.31.31103\bin\HostX64\x64" -x cu   -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.6\include"  -G   --keep-dir x64\Debug  -maxrregcount=0  --machine 64 --compile -cudart static  -g  -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_WINDLL -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc143.pdb /FS /Zi /RTC1 /MDd " -o c:\Users\danie\source\repos\fft2\fft\x64\Debug\kernel.cu.obj "c:\Users\danie\source\repos\fft2\fft\kernel.cu" 
+c:\Users\danie\source\repos\fft2\fft\Ambiguity.cu(63): warning #1390-D: dllexport/dllimport conflict with "Run"
+  c:\Users\danie\source\repos\fft2\fft\ambiguity.h(17): here; dllexport assumed
+  
+c:\Users\danie\source\repos\fft2\fft\Ambiguity.cu(284): warning #1390-D: dllexport/dllimport conflict with "Initialize"
+  c:\Users\danie\source\repos\fft2\fft\ambiguity.h(16): here; dllexport assumed
+  
+c:\Users\danie\source\repos\fft2\fft\Ambiguity.cu(384): warning #1390-D: dllexport/dllimport conflict with "Release"
+  c:\Users\danie\source\repos\fft2\fft\ambiguity.h(18): here; dllexport assumed
+  
+  kernel.cu
+c:\Users\danie\source\repos\fft2\fft\Ambiguity.cu(63): warning #1390-D: dllexport/dllimport conflict with "Run"
+  c:\Users\danie\source\repos\fft2\fft\ambiguity.h(17): here; dllexport assumed
+  
+c:\Users\danie\source\repos\fft2\fft\Ambiguity.cu(284): warning #1390-D: dllexport/dllimport conflict with "Initialize"
+  c:\Users\danie\source\repos\fft2\fft\ambiguity.h(16): here; dllexport assumed
+  
+c:\Users\danie\source\repos\fft2\fft\Ambiguity.cu(384): warning #1390-D: dllexport/dllimport conflict with "Release"
+  c:\Users\danie\source\repos\fft2\fft\ambiguity.h(18): here; dllexport assumed
+  
+  Ambiguity.cu
+c:\Users\danie\source\repos\fft2\fft\Ambiguity.cu(63): warning C4273: "Run": niespójne powiązanie biblioteki dll
+  c:\Users\danie\source\repos\fft2\fft\ambiguity.h(17): note: zobacz poprzednią definicję "Run"
+c:\Users\danie\source\repos\fft2\fft\Ambiguity.cu(284): warning C4273: "Initialize": niespójne powiązanie biblioteki dll
+  c:\Users\danie\source\repos\fft2\fft\ambiguity.h(16): note: zobacz poprzednią definicję "Initialize"
+c:\Users\danie\source\repos\fft2\fft\Ambiguity.cu(384): warning C4273: "Release": niespójne powiązanie biblioteki dll
+  c:\Users\danie\source\repos\fft2\fft\ambiguity.h(18): note: zobacz poprzednią definicję "Release"
+  stdafx.cpp
+     Trwa tworzenie biblioteki C:\Users\danie\source\repos\fft2\x64\Debug\fft.lib i obiektu C:\Users\danie\source\repos\fft2\x64\Debug\fft.exp
+  fft.vcxproj -> C:\Users\danie\source\repos\fft2\x64\Debug\fft.dll
