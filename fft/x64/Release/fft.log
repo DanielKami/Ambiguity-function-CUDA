@@ -7,19 +7,19 @@
 C:\Users\danie\source\repos\AmbiguityCUDA\fft\Ambiguity.cu(56): warning #1390-D: dllexport/dllimport conflict with "Initialize"
   C:\Users\danie\source\repos\AmbiguityCUDA\fft\ambiguity.h(21): here; dllexport assumed
   
-C:\Users\danie\source\repos\AmbiguityCUDA\fft\Ambiguity.cu(147): warning #1390-D: dllexport/dllimport conflict with "Run"
+C:\Users\danie\source\repos\AmbiguityCUDA\fft\Ambiguity.cu(150): warning #1390-D: dllexport/dllimport conflict with "Run"
   C:\Users\danie\source\repos\AmbiguityCUDA\fft\ambiguity.h(22): here; dllexport assumed
   
-C:\Users\danie\source\repos\AmbiguityCUDA\fft\Ambiguity.cu(452): warning #1390-D: dllexport/dllimport conflict with "Release"
+C:\Users\danie\source\repos\AmbiguityCUDA\fft\Ambiguity.cu(457): warning #1390-D: dllexport/dllimport conflict with "Release"
   C:\Users\danie\source\repos\AmbiguityCUDA\fft\ambiguity.h(23): here; dllexport assumed
   
 C:\Users\danie\source\repos\AmbiguityCUDA\fft\Ambiguity.cu(56): warning #1390-D: dllexport/dllimport conflict with "Initialize"
   C:\Users\danie\source\repos\AmbiguityCUDA\fft\ambiguity.h(21): here; dllexport assumed
   
-C:\Users\danie\source\repos\AmbiguityCUDA\fft\Ambiguity.cu(147): warning #1390-D: dllexport/dllimport conflict with "Run"
+C:\Users\danie\source\repos\AmbiguityCUDA\fft\Ambiguity.cu(150): warning #1390-D: dllexport/dllimport conflict with "Run"
   C:\Users\danie\source\repos\AmbiguityCUDA\fft\ambiguity.h(22): here; dllexport assumed
   
-C:\Users\danie\source\repos\AmbiguityCUDA\fft\Ambiguity.cu(452): warning #1390-D: dllexport/dllimport conflict with "Release"
+C:\Users\danie\source\repos\AmbiguityCUDA\fft\Ambiguity.cu(457): warning #1390-D: dllexport/dllimport conflict with "Release"
   C:\Users\danie\source\repos\AmbiguityCUDA\fft\ambiguity.h(23): here; dllexport assumed
   
   kernel.cu

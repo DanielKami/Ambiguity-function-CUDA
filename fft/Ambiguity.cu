@@ -92,7 +92,7 @@ int  Initialize(unsigned int BufferSize, unsigned int col, unsigned int row, flo
 	//0 is default
 	cudaStatus = cudaSetDevice(0);
 	if (cudaStatus != cudaSuccess) {
-		return CUDA_SET_DEVICE_ERROR;
+		return CUDA_SET_DEVICE_ERROR - cudaStatus;
 	}
 
 	if (cufftCreate(&plan) != CUFFT_SUCCESS) {
@@ -103,30 +103,33 @@ int  Initialize(unsigned int BufferSize, unsigned int col, unsigned int row, flo
 		return CUDA_FFT_PLAN1D_CREATE_ERROR;
 	}
 
+
 	//*********************************************************************
 	//Memory alocate
-
+	int su = 0;
 	cudaMalloc(reinterpret_cast<void**>(&Cuda_buf0), N_corrected);
-	if (cudaGetLastError() != cudaSuccess) {
-		return CUDA_MALLOC_ERROR;
+	if ((su = cudaGetLastError()) != cudaSuccess) {
+		return CUDA_MALLOC_ERROR - su;
 	}
+
 	cudaMalloc(reinterpret_cast<void**>(&Cuda_bufX), N_corrected);
-	if (cudaGetLastError() != cudaSuccess) {
-		return CUDA_MALLOC_ERROR;
+	if ((su = cudaGetLastError()) != cudaSuccess) {
+		return CUDA_MALLOC_ERROR - su;
 	}
 
 	cudaMalloc(reinterpret_cast<void**>(&Cuda_bufY), N_corrected);
-	if (cudaGetLastError() != cudaSuccess) {
-		return CUDA_MALLOC_ERROR;
+	if ((su = cudaGetLastError()) != cudaSuccess) {
+		return CUDA_MALLOC_ERROR - su;
 	}
+
 	cudaMalloc(reinterpret_cast<void**>(&Cuda_bufZ), N_corrected);
-	if (cudaGetLastError() != cudaSuccess) {
-		return CUDA_MALLOC_ERROR;
+	if ((su = cudaGetLastError()) != cudaSuccess) {
+		return CUDA_MALLOC_ERROR - su;
 	}
 
 	cudaMalloc(reinterpret_cast<void**>(&Cuda_ColRow), sizeof(float) * (ColRow + MAX_SHIFT));
-	if (cudaGetLastError() != cudaSuccess) {
-		return CUDA_MALLOC_ERROR;
+	if ((su = cudaGetLastError()) != cudaSuccess) {
+		return CUDA_MALLOC_ERROR - su;
 	}
 
 	if (cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) != CUFFT_SUCCESS) {
@@ -400,18 +403,20 @@ int Calculate(int shift, short scale_type, int index)
 
 int StreamSynchronise()
 {
-	if (cudaStreamSynchronize(stream) != cudaSuccess) 
+	int su;
+	if ((su = cudaStreamSynchronize(stream)) != cudaSuccess) 
 	{
-		return CUDA_STREAM_SYNCHRONISATION_ERROR;
+		return CUDA_STREAM_SYNCHRONISATION_ERROR - su;
 	}
 	return CUDA_OK;
 }
 
 int Synchronise()
 {
-	if (cudaDeviceSynchronize() != cudaSuccess) 
+	int su;
+	if ((su = cudaDeviceSynchronize()) != cudaSuccess) 
 	{
-		return CUDA_DEVICE_SYNCHRONISATION_ERROR;
+		return CUDA_DEVICE_SYNCHRONISATION_ERROR - su;
 	}
 	return CUDA_OK;
 }
@@ -462,46 +467,46 @@ int  Release()
 	//***************************************************
 	cudaStatus = cudaFree(Cuda_buf0);
 	if (cudaStatus != cudaSuccess) {
-		return CUDA_FREE_ERROR;
+		return CUDA_FREE_ERROR - cudaStatus;
 	}
 
 	cudaStatus = cudaFree(Cuda_bufX);
 	if (cudaStatus != cudaSuccess) {
-		return CUDA_FREE_ERROR;
+		return CUDA_FREE_ERROR - cudaStatus;
 	}
 	cudaStatus = cudaFree(Cuda_bufY);
 	if (cudaStatus != cudaSuccess) {
-		return CUDA_FREE_ERROR;
+		return CUDA_FREE_ERROR - cudaStatus;
 	}
 
 	cudaStatus = cudaFree(Cuda_bufZ);
 	if (cudaStatus != cudaSuccess) {
-		return CUDA_FREE_ERROR;
+		return CUDA_FREE_ERROR - cudaStatus;
 	}
 
 	cudaStatus = cudaFree(Cuda_ColRow);
 	if (cudaStatus != cudaSuccess) {
-		return CUDA_FREE_ERROR;
+		return CUDA_FREE_ERROR - cudaStatus;
 	}
 
-	
-	if (cufftDestroy(plan) != cudaSuccess) {
-		fprintf(stderr, "cufftDestroy failed!");
-		return CUDA_CUFFT_DESTROY_ERROR;
+	int su;
+	if ((su = cufftDestroy(plan) ) != cudaSuccess) {
+		//fprintf(stderr, "cufftDestroy failed!");
+		return CUDA_CUFFT_DESTROY_ERROR - su;
 	}
 
 	cudaStatus = cudaStreamDestroy(stream);
 	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaStreamDestroy failed!");
-		return CUDA_STREAM_DESTROY_ERROR;
+		//fprintf(stderr, "cudaStreamDestroy failed!");
+		return CUDA_STREAM_DESTROY_ERROR - cudaStatus;
 	}
 
 	// cudaDeviceReset must be called before exiting in order for profiling and
 	// tracing tools such as Nsight and Visual Profiler to show complete traces.
 	cudaStatus = cudaDeviceReset();
 	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceReset failed!");
-		return CUDA_DEVICE_RESET_ERROR;
+		//fprintf(stderr, "cudaDeviceReset failed!");
+		return CUDA_DEVICE_RESET_ERROR - cudaStatus;
 	}
 
 
@@ -531,8 +536,9 @@ int CopyShift(size_t rotation_shift)
 
 	CopyShiftCUDA << <blocksPerGrid, threadsPerBlock >> > (Cuda_buf0, Cuda_bufX, Cuda_bufY, rotation_shift, Nth);
 
-	if (cudaGetLastError() != cudaSuccess) {
-		return CUDA_SHIFT_ERROR;
+	int su;
+	if ((su = cudaGetLastError() )!= cudaSuccess) {
+		return CUDA_SHIFT_ERROR - su;
 	}
 
 	int err = Synchronise();
@@ -548,8 +554,9 @@ int Corelate()
 {
 	CorelateCUDA << <blocksPerGrid, threadsPerBlock >> > (Cuda_buf0, Cuda_bufY, Cuda_bufZ, Nth);
 
-	if (cudaGetLastError() != cudaSuccess) {
-		return CUDA_CORELATE_ERROR;
+	int su;
+	if ((su = cudaGetLastError()) != cudaSuccess) {
+		return CUDA_SHIFT_ERROR - su;
 	}
 
 	int err = Synchronise();
@@ -567,8 +574,9 @@ int Magnitude(int shift, short scale_Type, int Col_index)
 	//shift_corrected = Row_corrected + sizeof(cufftComplex) * Row * BATCH;
 	MagnitudeCUDA << <blocksPerGrid, threadsPerBlock >> > (Cuda_bufZ, Cuda_ColRow, Row, Col_index * Row, shift, scale_Type );
 
-	if (cudaGetLastError() != cudaSuccess) {
-		return CUDA_MAGNITUDE_ERROR;
+	int su;
+	if ((su = cudaGetLastError()) != cudaSuccess) {
+		return CUDA_SHIFT_ERROR - su;
 	}
 
 	int err = Synchronise();
@@ -585,8 +593,9 @@ int CalcShift(size_t rotation_shift )
 
 	ShiftCUDA << <blocksPerGrid, threadsPerBlock >> > (Cuda_buf0, Cuda_bufY, rotation_shift, Nth);
 
-	if (cudaGetLastError() != cudaSuccess) {
-		return CUDA_SHIFT_CALCULATION_ERROR;
+	int su;
+	if ((su = cudaGetLastError()) != cudaSuccess) {
+		return CUDA_SHIFT_ERROR - su;
 	}
 
 	int err = Synchronise();
@@ -605,9 +614,9 @@ int CalcCorelateShift(size_t rotation_shift)
 {
 	CorelateShiftCUDA << <blocksPerGrid, threadsPerBlock >> > ( Cuda_bufX, Cuda_bufY,Cuda_bufZ, rotation_shift, Nth);
 
-	if (cudaGetLastError() != cudaSuccess) 
-	{
-		return CUDA_SHIFT_CORELATE_ERROR;
+	int su;
+	if ((su = cudaGetLastError()) != cudaSuccess) {
+		return CUDA_SHIFT_ERROR - su;
 	}
 
 	int err = Synchronise();
