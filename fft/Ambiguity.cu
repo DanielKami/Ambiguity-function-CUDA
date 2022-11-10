@@ -5,6 +5,8 @@
 // Input: data are float strings from RTL one or two dongles
 // Output: Data in map format (x,y) containing Doppler shift X and time delay Y
 
+#define CALCULATE_SQRT_ON_CPU  //it is slightly faster on i5 11400
+
 #include "stdafx.h"
 #include <stdio.h>
 
@@ -103,6 +105,7 @@ int  Initialize(unsigned int BufferSize, unsigned int col, unsigned int row, flo
 		return CUDA_FFT_PLAN1D_CREATE_ERROR;
 	}
 
+	 
 
 	//*********************************************************************
 	//Memory alocate
@@ -147,7 +150,7 @@ int  Initialize(unsigned int BufferSize, unsigned int col, unsigned int row, flo
 
 
 //Data_In is in a format Data_In[2*n] - Real values, Data_In[2*n+1] - Imaginary values
-int  Run(float* Data_In0, float* Data_In1, float* Data_Out, float amplification, float doppler_zoom, int shift, bool mode, short scale_type, bool remove_symetrics)
+int  Run(int* Data_In0, int* Data_In1, float* Data_Out, float amplification, float doppler_zoom, int time_shift, bool mode, short scale_type, bool remove_symetrics)
 {
 	 
 	int err;
@@ -157,11 +160,11 @@ int  Run(float* Data_In0, float* Data_In1, float* Data_Out, float amplification,
 	if (!openCL_Initiated) 
 		return CUDA_RUNNING;
 
-	if (shift > MAX_SHIFT) 
-		shift = MAX_SHIFT;
+	if (time_shift > MAX_SHIFT) 
+		time_shift = MAX_SHIFT;
 
 	int HalfColumns = Col / 2;
-	int shift_cor = shift * 2;//4 bits size
+	int shift_cor = time_shift * 2;//4 bits size
 	Doppler_zoom = 1.0f * Nth / doppler_zoom;
 	Doppler_zoom_Col = Doppler_zoom / Col;
 
@@ -269,7 +272,7 @@ int  Run(float* Data_In0, float* Data_In1, float* Data_Out, float amplification,
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	//Copy from device to machine all the results in one shut (it saves a lot of time) Data_Out contains all shifter lines (the rugh image)
-	if (cudaMemcpyAsync(Data_Out, Cuda_ColRow, sizeof(float) * (ColRow + shift), cudaMemcpyDeviceToHost, stream) != CUFFT_SUCCESS)
+	if (cudaMemcpyAsync(Data_Out, Cuda_ColRow, sizeof(float) * (ColRow + time_shift), cudaMemcpyDeviceToHost, stream) != CUFFT_SUCCESS)
 	{
 		return CUDA_MEMORY_COPY_ERROR;
 	}
@@ -285,23 +288,51 @@ int  Run(float* Data_In0, float* Data_In1, float* Data_Out, float amplification,
 	// Sometimes  MachinColRow is negative and Radar crashes (solved)
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-	float d = 0.0001f;
-	float TotalMAX = 0;
-
-    //////   Normalise to max    ///////////////////////////////////////////////////////////////////////////////
-
+#ifdef CALCULATE_SQRT_ON_CPU
 #pragma omp parallel for
 	for (int n = 0; n < ColRow; n++)
 	{
-		d = Data_Out[n];
+		Data_Out[n] = sqrtf(Data_Out[n]);
 
-		if (d > maxval)
+		if (Data_Out[n] > maxval)
 		{
-			maxval = d;
+			maxval = Data_Out[n];
 		}
 	}
-	
+
+	if (scale_type == 1)
+	{
+#pragma omp parallel for
+		for (int n = 0; n < ColRow; n++)
+		{
+			Data_Out[n] = sqrtf(Data_Out[n]);
+		}
+		maxval = sqrtf(maxval);
+	}
+
+	if (scale_type == 2)
+	{
+#pragma omp parallel for
+		for (int n = 0; n < ColRow; n++)
+		{
+			Data_Out[n] = log2f(Data_Out[n]);
+		}
+		maxval = log2f(maxval);
+	}
+
+#else
+    //////   Normalise to max    ///////////////////////////////////////////////////////////////////////////////
+#pragma omp parallel for
+	for (int n = 0; n < ColRow; n++)
+	{
+		if (Data_Out[n] > maxval)
+		{
+			maxval = Data_Out[n];
+		}
+	}
+#endif
+
+		float TotalMAX = 0;
 	maxval = 1.0f / maxval;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -311,8 +342,7 @@ int  Run(float* Data_In0, float* Data_In1, float* Data_Out, float amplification,
 #pragma omp parallel for
 	for (int n = 0; n < ColRow; n++)
 	{
-		Data_Out[n] *= maxval;
-		TotalMAX += Data_Out[n];
+		TotalMAX += (Data_Out[n] *= maxval);		
 	}
 
 	rev = 1;
@@ -321,7 +351,7 @@ int  Run(float* Data_In0, float* Data_In1, float* Data_Out, float amplification,
 	if (scale_type == 2)	rev = log2f(amplification);
 
 	if (TotalMAX <= 10) TotalMAX = 10;
-	TotalMAX = CONSTANT_AMPLIFICATION / TotalMAX * rev;
+	     TotalMAX = CONSTANT_AMPLIFICATION / TotalMAX * rev;
 
 #pragma omp parallel for
 	for (int n = 0; n < ColRow; n++)
@@ -572,7 +602,7 @@ int Magnitude(int shift, short scale_Type, int Col_index)
 {
 	//Row_corrected = sizeof(cufftComplex) * Row * BATCH;
 	//shift_corrected = Row_corrected + sizeof(cufftComplex) * Row * BATCH;
-	MagnitudeCUDA << <blocksPerGrid, threadsPerBlock >> > (Cuda_bufZ, Cuda_ColRow, Row, Col_index * Row, shift, scale_Type );
+	MagnitudeCUDA << <blocksPerGrid, threadsPerBlock >> > (Cuda_bufZ, Cuda_ColRow, Row, Col_index * Row, shift, scale_Type );//
 
 	int su;
 	if ((su = cudaGetLastError()) != cudaSuccess) {
@@ -777,9 +807,12 @@ __global__ void MagnitudeCUDA(cufftComplex* Inp, float* Out, int cuda_row, int c
 
 	if (i < cuda_row) //protection
 	{
-		Out[k] = sqrtf(Inp[j].x * Inp[j].x + Inp[j].y * Inp[j].y);
-
+#ifdef CALCULATE_SQRT_ON_CPU
+		Out[k] = (Inp[j].x * Inp[j].x + Inp[j].y * Inp[j].y); 
+#else
+		Out[k] = sqrtf(Inp[j].x * Inp[j].x + Inp[j].y * Inp[j].y); //if this is performed on CPU is faster ????
 		if (scale_type == 1) Out[k] = sqrtf(Out[k]);
 		if (scale_type == 2) Out[k] = log2f(Out[k]);
+#endif
 	}
 }

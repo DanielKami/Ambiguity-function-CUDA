@@ -19,7 +19,7 @@
 extern "C"
 {
 	int  DLLIMPORT Initialize(unsigned int BufferSize, unsigned int col, unsigned int row, float doopler_shift, short* name);
-	int  DLLIMPORT Run(float* Data_In0, float* Data_In1, float* Data_Out, float amplification, float doopler_zoom, int shift, bool mode, short scale_type, bool remove_symetrics);
+	int  DLLIMPORT Run(int* Data_In0, int* Data_In1, float* Data_Out, float amplification, float doopler_zoom, int shift, bool mode, short scale_type, bool remove_symetrics);
 	int  DLLIMPORT Release();
 }
 
@@ -44,7 +44,7 @@ __global__ void ShiftCUDA(cufftComplex* In, cufftComplex* Out, size_t shift, siz
 __global__ void CopyShiftCUDA(cufftComplex* Buf0, cufftComplex* BufX, cufftComplex* BufY, size_t shift, size_t numElements);
 __global__ void CopyCUDA(cufftComplex* Inp1, cufftComplex* Inp2, size_t numElements);
 __global__ void CorelateCUDA(cufftComplex* InpX, cufftComplex* InpY, cufftComplex* Out, size_t numElements);
-__global__ void MagnitudeCUDA(cufftComplex* Inp, float* Out, int cuda_row, int col_index, int cuda_shift, short scale_type);
+__global__ void MagnitudeCUDA(cufftComplex* Inp, float* Out, int cuda_row, int col_index, int cuda_shift, short scale_type);//
 
 
 #endif /* _DLL_H_ */
