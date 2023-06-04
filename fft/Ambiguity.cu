@@ -19,17 +19,18 @@
 #define DEFOULT_CUDA_DEVICE 0
 #define BATCH 1
 #define RANK 1
-#define MAX_SHIFT 200
+#define MAX_SHIFT 400
 #define CONSTANT_AMPLIFICATION 200000.0f
 
 //globals
 bool openCL_Initiated = false;
 
-//cuda pointers 
+//cuda pointers We have a lot of space 6GB
 cufftComplex* Cuda_buf0 = nullptr;
 cufftComplex* Cuda_bufX = nullptr;
 cufftComplex* Cuda_bufY = nullptr;
 cufftComplex* Cuda_bufZ = nullptr;
+cufftComplex* Cuda_bufW = nullptr;
 float* Cuda_ColRow = nullptr;
 
 //Machine pointers to be reduced with time
@@ -37,7 +38,7 @@ cufftComplex* dat_inp0 = nullptr;
 cufftComplex* dat_inp1 = nullptr;
 float* MachinColRow = nullptr;
 
-size_t threadsPerBlock = 1024;
+size_t threadsPerBlock = 1024; //max on rtx3060
 size_t blocksPerGrid;
 cudaStream_t stream = NULL;
 cufftHandle plan;
@@ -130,6 +131,11 @@ int  Initialize(unsigned int BufferSize, unsigned int col, unsigned int row, flo
 		return CUDA_MALLOC_ERROR - su;
 	}
 
+	cudaMalloc(reinterpret_cast<void**>(&Cuda_bufW), N_corrected);
+	if ((su = cudaGetLastError()) != cudaSuccess) {
+		return CUDA_MALLOC_ERROR - su;
+	}
+
 	cudaMalloc(reinterpret_cast<void**>(&Cuda_ColRow), sizeof(float) * (ColRow + MAX_SHIFT));
 	if ((su = cudaGetLastError()) != cudaSuccess) {
 		return CUDA_MALLOC_ERROR - su;
@@ -143,6 +149,7 @@ int  Initialize(unsigned int BufferSize, unsigned int col, unsigned int row, flo
 		return CUDA_STREAM_SET_ERROR;
 	}
 
+ 
 	openCL_Initiated = true;
 	return CUDA_OK;
 }
@@ -152,7 +159,7 @@ int  Initialize(unsigned int BufferSize, unsigned int col, unsigned int row, flo
 //Data_In is in a format Data_In[2*n] - Real values, Data_In[2*n+1] - Imaginary values
 int  Run(int* Data_In0, int* Data_In1, float* Data_Out, float amplification, float doppler_zoom, int time_shift, bool mode, short scale_type, bool remove_symetrics)
 {
-	 
+
 	int err;
 	float maxval = 1E-6f;
 	float rev;
@@ -163,12 +170,13 @@ int  Run(int* Data_In0, int* Data_In1, float* Data_Out, float amplification, flo
 	if (time_shift > MAX_SHIFT) 
 		time_shift = MAX_SHIFT;
 
-	int HalfColumns = Col / 2;
-	int shift_cor = time_shift * 2;//4 bits size
+	
+	int HalfCol = Col / 2;
+	int shift_cor = time_shift * 2; 
 	Doppler_zoom = 1.0f * Nth / doppler_zoom;
 	Doppler_zoom_Col = Doppler_zoom / Col;
 
-
+	 
 	//Convert float2 to cufftComplex (a bit annoying)
 
 	if (mode)
@@ -252,15 +260,16 @@ int  Run(int* Data_In0, int* Data_In1, float* Data_Out, float amplification, flo
 
 	}
 
-
+	
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
     //     This section
 	// Input:
 	//     Cuda_bufY - fft reference data shifted to half from Cuda_buf0
-	//     Cuda_bufX - fft basic  date not shifted yet
+	//     Cuda_bufX - fft basic  date not shifted  
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	//Calculate ambiguity
+	// 
 	//The hardest part of calculations (shift every column) Cuda_bufX in steps of N/Col/rotation_zoom
 	for (int n = 0; n < Col; n++)
 	{
@@ -270,16 +279,18 @@ int  Run(int* Data_In0, int* Data_In1, float* Data_Out, float amplification, flo
 	}
 	
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	//Copy from device to machine all the results in one shut (it saves a lot of time) Data_Out contains all shifter lines (the rugh image)
+	
+	//Copy from device to machine all the results in one shut (it saves a lot of time) Data_Out contains all shifted lines (the rough image)
 	if (cudaMemcpyAsync(Data_Out, Cuda_ColRow, sizeof(float) * (ColRow + time_shift), cudaMemcpyDeviceToHost, stream) != CUFFT_SUCCESS)
 	{
 		return CUDA_MEMORY_COPY_ERROR;
 	}
-	err = StreamSynchronise();
-	if (err < CUDA_OK)
-		return err;
 
+	//not necesarry
+	//err = StreamSynchronise();
+	//if (err < CUDA_OK)
+	//	return err;
+	
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//                                    Signal map postprocesing
@@ -371,10 +382,10 @@ int  Run(int* Data_In0, int* Data_In1, float* Data_Out, float amplification, flo
 	if (remove_symetrics)
 	{
 #pragma omp parallel for
-		for (int C = 0 + 1; C < HalfColumns + 1; C++)  
+		for (int C = 0 + 1; C < HalfCol + 1; C++)  
 		{
-			c1 = (HalfColumns + C) * Row;
-			c2 = (HalfColumns - C) * Row;
+			c1 = (HalfCol + C) * Row;
+			c2 = (HalfCol - C) * Row;
 
 			for (int R = 0; R < Row; R++)
 			{
@@ -467,15 +478,17 @@ int FFT_forward()
 	return CUDA_OK;
 }
 
-
+//In: Cuda_bufZ
+//Out: Cuda_bufW - small speed improvement
 int FFT_bacward()
 {
 	//Backward fft
-	if (cufftExecC2C(plan, Cuda_bufZ, Cuda_bufZ, CUFFT_INVERSE) != CUFFT_SUCCESS) 
+	if (cufftExecC2C(plan, Cuda_bufZ, Cuda_bufW, CUFFT_INVERSE) != CUFFT_SUCCESS) 
 	{
 		return CUDA_FFT_EXECUTE_ERROR;
 	}
 
+	//Synchronisation is crucial
 	int err = Synchronise();
 	if (err < CUDA_OK)
 		return err;
@@ -514,6 +527,10 @@ int  Release()
 		return CUDA_FREE_ERROR - cudaStatus;
 	}
 
+	cudaStatus = cudaFree(Cuda_bufW);
+	if (cudaStatus != cudaSuccess) {
+		return CUDA_FREE_ERROR - cudaStatus;
+	}
 	cudaStatus = cudaFree(Cuda_ColRow);
 	if (cudaStatus != cudaSuccess) {
 		return CUDA_FREE_ERROR - cudaStatus;
@@ -602,16 +619,17 @@ int Magnitude(int shift, short scale_Type, int Col_index)
 {
 	//Row_corrected = sizeof(cufftComplex) * Row * BATCH;
 	//shift_corrected = Row_corrected + sizeof(cufftComplex) * Row * BATCH;
-	MagnitudeCUDA << <blocksPerGrid, threadsPerBlock >> > (Cuda_bufZ, Cuda_ColRow, Row, Col_index * Row, shift, scale_Type );//
+	MagnitudeCUDA << <blocksPerGrid, threadsPerBlock >> > (Cuda_bufW, Cuda_ColRow, Row, Col_index * Row, shift, scale_Type );//
 
 	int su;
 	if ((su = cudaGetLastError()) != cudaSuccess) {
 		return CUDA_SHIFT_ERROR - su;
 	}
 
-	int err = Synchronise();
-	if (err < CUDA_OK) return err;
-	return CUDA_OK;
+	//This can be omited because it has no efect on the rotation shift
+	//int err = Synchronise();
+	//if (err < CUDA_OK) return err;
+	//return CUDA_OK;
 }
 
 
@@ -688,15 +706,15 @@ __global__ void CorelateShiftCUDA(cufftComplex* BufX, cufftComplex* BufY, cufftC
 	if (j < numElements) //protection
 	{
 		BufZ[i].x = BufY[i].x * BufX[j].x + BufY[i].y * BufX[j].y;
-		BufZ[i].y = -BufY[i].x * BufX[j].y + BufY[i].y * BufX[j].x;
+		BufZ[i].y =BufY[i].y * BufX[j].x - BufY[i].x * BufX[j].y;
 	}
 	else
 	{
-		if (i < numElements) //protection
+	//	if (i < numElements) //protection
 		{
 			size_t l = j - numElements;
 			BufZ[i].x = BufY[i].x * BufX[l].x + BufY[i].y * BufX[l].y;
-			BufZ[i].y = -BufY[i].x * BufX[l].y + BufY[i].y * BufX[l].x;
+			BufZ[i].y = BufY[i].y * BufX[l].x - BufY[i].x * BufX[l].y;
 		}
 	}
 }
@@ -798,6 +816,7 @@ __global__ void CorelateCUDA(cufftComplex* InpX, cufftComplex* InpY, cufftComple
  *
  *Input: Cuda_bufZ, Cuda_ColRow, Row,    Col_index* Row, shift, scale_Type
  *Output: Cuda_bufZ
+ * Input/output Cuda_ColRow (Out) -the results on output are the most important. All transformations are cumulated in this buffer
  */
 __global__ void MagnitudeCUDA(cufftComplex* Inp, float* Out, int cuda_row, int col_index, int cuda_shift, short scale_type)
 {
